@@ -10,10 +10,11 @@ RUN apt-get update -qq && apt-get install -yqq \
     libgoogle-glog-dev \
     libatlas-base-dev \
     libeigen3-dev \
-    libsuitesparse-dev \
-    cd /root \
-    git clone https://ceres-solver.googlesource.com/ceres-solver \
-    cd ./ceres-solver && git checkout tags/${CERES_VERSION} && cmake . && make install
+    libsuitesparse-dev
+
+WORKDIR /root
+RUN git clone https://ceres-solver.googlesource.com/ceres-solver
+RUN cd ./ceres-solver && git checkout tags/${CERES_VERSION} && cmake . && make install
 
 RUN mkdir -p $ROS_WORKSPACE_PATH/src
 RUN /bin/bash -c '. /opt/ros/kinetic/setup.bash; catkin_init_workspace $ROS_WORKSPACE_PATH/src'
