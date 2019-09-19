@@ -1,7 +1,7 @@
 FROM ros:kinetic-perception
 
 ENV CERES_VERSION="1.12.0"
-ENV CATKIN_WS=/root/catkin_ws
+ENV ROS_WORKSPACE_PATH=/root/catkin_ws
 
       # set up thread number for building
 RUN   if [ "x$(nproc)" = "x1" ] ; then export USE_PROC=1 ; \
@@ -26,15 +26,15 @@ RUN   if [ "x$(nproc)" = "x1" ] ; then export USE_PROC=1 ; \
       cmake .. && \
       make -j$(USE_PROC) install && \
       rm -rf ../../ceres-solver && \
-      mkdir -p $CATKIN_WS/src/VINS-Fusion/
+      mkdir -p $ROS_WORKSPACE_PATH/src/VINS-Fusion/
 
 # Copy VINS-Fusion
-COPY ./ $CATKIN_WS/src/VINS-Fusion/
+COPY ./ $ROS_WORKSPACE_PATH/src/VINS-Fusion/
 # use the following line if you only have this dockerfile
 # RUN git clone https://github.com/HKUST-Aerial-Robotics/VINS-Fusion.git
 
 # Build VINS-Fusion
-WORKDIR $CATKIN_WS
+WORKDIR $ROS_WORKSPACE_PATH
 ENV TERM xterm
 ENV PYTHONIOENCODING UTF-8
 RUN catkin config \
@@ -43,4 +43,4 @@ RUN catkin config \
         -DCMAKE_BUILD_TYPE=Release && \
     catkin build && \
     sed -i '/exec "$@"/i \
-            source "/root/catkin_ws/devel/setup.bash"' /ros_entrypoint.sh
+            source "/root/catkin_workspace/devel/setup.bash"' /ros_entrypoint.sh

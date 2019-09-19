@@ -1,6 +1,7 @@
-FROM ros:kinetic-ros-base
+FROM ros:kinetic-perception
 MAINTAINER Ascend NTNU "www.ascendntnu.no"
 
+ENV CERES_VERSION="1.12.0"
 ENV ROS_WORKSPACE_PATH=/root/catkin_workspace
 
 RUN apt-get update -qq && apt-get install -yqq \
@@ -10,11 +11,17 @@ RUN apt-get update -qq && apt-get install -yqq \
     libatlas-base-dev \
     libeigen3-dev \
     libsuitesparse-dev \
-
-WORKDIR /root
-RUN git clone git clone https://ceres-solver.googlesource.com/ceres-solver
-RUN mkdir ceres-bin && cd ceres-bin
-RUN cmake ../ceres-solver && make -j3 && make install
+    ros-${ROS_DISTRO}-cv-bridge \
+    ros-${ROS_DISTRO}-image-transport \
+    ros-${ROS_DISTRO}-message-filters \
+    ros-${ROS_DISTRO}-tf && \
+    rm -rf /var/lib/apt/lists/* && \
+    # Install Ceres with static version
+    git clone https://ceres-solver.googlesource.com/ceres-solver && \
+    cd ./ceres-solver && \
+    git checkout tags/${CERES_VERSION} && \
+    cmake . && make install && \
+    rm -rf ../../ceres-solver
 
 RUN mkdir -p $ROS_WORKSPACE_PATH/src
 RUN /bin/bash -c '. /opt/ros/kinetic/setup.bash; catkin_init_workspace $ROS_WORKSPACE_PATH/src'
