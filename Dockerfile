@@ -4,9 +4,7 @@ MAINTAINER Ascend NTNU "www.ascendntnu.no"
 ENV CERES_VERSION="1.12.0"
 ENV ROS_WORKSPACE_PATH=/root/catkin_workspace
 
-RUN if [ "x$(nproc)" = "x1" ] ; then export USE_PROC=1 ; \
-    else export USE_PROC=$(($(nproc)/2)) ; fi && \
-    apt-get update -qq && apt-get install -yqq \
+RUN apt-get update -qq && apt-get install -yqq \
     build-essential \
     cmake \
     libgoogle-glog-dev \
@@ -22,7 +20,7 @@ RUN if [ "x$(nproc)" = "x1" ] ; then export USE_PROC=1 ; \
     git clone https://ceres-solver.googlesource.com/ceres-solver && \
     cd ./ceres-solver && \
     git checkout tags/${CERES_VERSION} && \
-    cmake . && make -j$(USE_PROC) install && \
+    cmake . && make install && \
     rm -rf ../../ceres-solver
 
 RUN mkdir -p $ROS_WORKSPACE_PATH/src
