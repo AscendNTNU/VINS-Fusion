@@ -13,8 +13,7 @@ RUN apt-get update -qq && apt-get install -yqq \
 
 WORKDIR /root
 RUN git clone https://ceres-solver.googlesource.com/ceres-solver
-RUN mkdir ceres-bin && cd ceres-bin
-RUN cmake ../ceres-solver && make -j3 && make install
+RUN cd ./ceres-solver && cmake . && make install
 
 RUN mkdir -p $ROS_WORKSPACE_PATH/src
 RUN /bin/bash -c '. /opt/ros/kinetic/setup.bash; catkin_init_workspace $ROS_WORKSPACE_PATH/src'
