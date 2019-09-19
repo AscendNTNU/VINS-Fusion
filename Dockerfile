@@ -9,10 +9,10 @@ RUN apt-get update -qq && apt-get install -yqq \
     libgoogle-glog-dev \
     libatlas-base-dev \
     libeigen3-dev \
-    libsuitesparse-dev \
+    libsuitesparse-dev
 
 WORKDIR /root
-RUN git clone git clone https://ceres-solver.googlesource.com/ceres-solver
+RUN git clone https://ceres-solver.googlesource.com/ceres-solver
 RUN mkdir ceres-bin && cd ceres-bin
 RUN cmake ../ceres-solver && make -j3 && make install
 
