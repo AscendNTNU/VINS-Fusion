@@ -20,6 +20,7 @@
 #include "estimator/estimator.h"
 #include "estimator/parameters.h"
 #include "utility/visualization.h"
+#include "vins/vins_node.h"
 
 Estimator estimator;
 
@@ -29,6 +30,17 @@ queue<sensor_msgs::ImageConstPtr> img0_buf;
 queue<sensor_msgs::ImageConstPtr> img1_buf;
 std::mutex m_buf;
 
+VINS_node::VINS_node(ros::NodeHandle &nh) : 
+    nh_(nh)
+{
+    sub_imu = nh_.subscribe(IMU_TOPIC, 2000, imu_callback, ros::TransportHints().tcpNoDelay());
+    sub_feature = nh_.subscribe("/feature_tracker/feature", 2000, feature_callback);
+    sub_img0 = nh_.subscribe(IMAGE0_TOPIC, 100, img0_callback);
+    sub_img1 = nh_.subscribe(IMAGE1_TOPIC, 100, img1_callback);
+    sub_restart = nh_.subscribe("/vins_restart", 100, restart_callback);
+    sub_imu_switch = nh_.subscribe("/vins_imu_switch", 100, imu_switch_callback);
+    sub_cam_switch = nh_.subscribe("/vins_cam_switch", 100, cam_switch_callback);
+}
 
 void img0_callback(const sensor_msgs::ImageConstPtr &img_msg)
 {
@@ -43,7 +55,6 @@ void img1_callback(const sensor_msgs::ImageConstPtr &img_msg)
     img1_buf.push(img_msg);
     m_buf.unlock();
 }
-
 
 cv::Mat getImageFromMsg(const sensor_msgs::ImageConstPtr &img_msg)
 {
@@ -70,9 +81,9 @@ cv::Mat getImageFromMsg(const sensor_msgs::ImageConstPtr &img_msg)
 // extract images with same timestamp from two topics
 void sync_process()
 {
-    while(1)
+    while (1)
     {
-        if(STEREO)
+        if (STEREO)
         {
             cv::Mat image0, image1;
             std_msgs::Header header;
@@ -83,15 +94,15 @@ void sync_process()
                 double time0 = img0_buf.front()->header.stamp.toSec();
                 double time1 = img1_buf.front()->header.stamp.toSec();
                 // 0.003s sync tolerance
-                if(time0 < time1 - 0.003)
+                if (time0 < time1 - 0.003)
                 {
                     img0_buf.pop();
-                    printf("throw img0\n");
+                    printf("throw img0\nh_");
                 }
-                else if(time0 > time1 + 0.003)
+                else if (time0 > time1 + 0.003)
                 {
                     img1_buf.pop();
-                    printf("throw img1\n");
+                    printf("throw img1\nh_");
                 }
                 else
                 {
@@ -101,11 +112,11 @@ void sync_process()
                     img0_buf.pop();
                     image1 = getImageFromMsg(img1_buf.front());
                     img1_buf.pop();
-                    //printf("find img0 and img1\n");
+                    //printf("find img0 and img1\nh_");
                 }
             }
             m_buf.unlock();
-            if(!image0.empty())
+            if (!image0.empty())
                 estimator.inputImage(time, image0, image1);
         }
         else
@@ -114,7 +125,7 @@ void sync_process()
             std_msgs::Header header;
             double time = 0;
             m_buf.lock();
-            if(!img0_buf.empty())
+            if (!img0_buf.empty())
             {
                 time = img0_buf.front()->header.stamp.toSec();
                 header = img0_buf.front()->header;
@@ -122,7 +133,7 @@ void sync_process()
                 img0_buf.pop();
             }
             m_buf.unlock();
-            if(!image.empty())
+            if (!image.empty())
                 estimator.inputImage(time, image);
         }
 
@@ -130,7 +141,6 @@ void sync_process()
         std::this_thread::sleep_for(dura);
     }
 }
-
 
 void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
 {
@@ -147,7 +157,6 @@ void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
     return;
 }
 
-
 void feature_callback(const sensor_msgs::PointCloudConstPtr &feature_msg)
 {
     map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> featureFrame;
@@ -162,18 +171,18 @@ void feature_callback(const sensor_msgs::PointCloudConstPtr &feature_msg)
         double p_v = feature_msg->channels[3].values[i];
         double velocity_x = feature_msg->channels[4].values[i];
         double velocity_y = feature_msg->channels[5].values[i];
-        if(feature_msg->channels.size() > 5)
+        if (feature_msg->channels.size() > 5)
         {
             double gx = feature_msg->channels[6].values[i];
             double gy = feature_msg->channels[7].values[i];
             double gz = feature_msg->channels[8].values[i];
             pts_gt[feature_id] = Eigen::Vector3d(gx, gy, gz);
-            //printf("receive pts gt %d %f %f %f\n", feature_id, gx, gy, gz);
+            //printf("receive pts gt %d %f %f %f\nh_", feature_id, gx, gy, gz);
         }
         ROS_ASSERT(z == 1);
         Eigen::Matrix<double, 7, 1> xyz_uv_velocity;
         xyz_uv_velocity << x, y, z, p_u, p_v, velocity_x, velocity_y;
-        featureFrame[feature_id].emplace_back(camera_id,  xyz_uv_velocity);
+        featureFrame[feature_id].emplace_back(camera_id, xyz_uv_velocity);
     }
     double t = feature_msg->header.stamp.toSec();
     estimator.inputFeature(t, featureFrame);
@@ -224,19 +233,19 @@ void cam_switch_callback(const std_msgs::BoolConstPtr &switch_msg)
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "vins_estimator");
-    ros::NodeHandle n("~");
+    ros::NodeHandle nh_("~");
     ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info);
 
-    if(argc != 2)
+    if (argc != 2)
     {
-        printf("please intput: rosrun vins vins_node [config file] \n"
+        printf("please intput: rosrun vins vins_node [config file] \nh_"
                "for example: rosrun vins vins_node "
-               "~/catkin_ws/src/VINS-Fusion/config/euroc/euroc_stereo_imu_config.yaml \n");
+               "~/catkin_ws/src/VINS-Fusion/config/euroc/euroc_stereo_imu_config.yaml \nh_");
         return 1;
     }
 
     string config_file = argv[1];
-    printf("config_file: %s\n", argv[1]);
+    printf("config_file: %s\nh_", argv[1]);
 
     readParameters(config_file);
     estimator.setParameter();
@@ -247,15 +256,15 @@ int main(int argc, char **argv)
 
     ROS_WARN("waiting for image and imu...");
 
-    registerPub(n);
+    registerPub(nh_);
 
-    ros::Subscriber sub_imu = n.subscribe(IMU_TOPIC, 2000, imu_callback, ros::TransportHints().tcpNoDelay());
-    ros::Subscriber sub_feature = n.subscribe("/feature_tracker/feature", 2000, feature_callback);
-    ros::Subscriber sub_img0 = n.subscribe(IMAGE0_TOPIC, 100, img0_callback);
-    ros::Subscriber sub_img1 = n.subscribe(IMAGE1_TOPIC, 100, img1_callback);
-    ros::Subscriber sub_restart = n.subscribe("/vins_restart", 100, restart_callback);
-    ros::Subscriber sub_imu_switch = n.subscribe("/vins_imu_switch", 100, imu_switch_callback);
-    ros::Subscriber sub_cam_switch = n.subscribe("/vins_cam_switch", 100, cam_switch_callback);
+    ros::Subscriber sub_imu = nh_.subscribe(IMU_TOPIC, 2000, imu_callback, ros::TransportHints().tcpNoDelay());
+    ros::Subscriber sub_feature = nh_.subscribe("/feature_tracker/feature", 2000, feature_callback);
+    ros::Subscriber sub_img0 = nh_.subscribe(IMAGE0_TOPIC, 100, img0_callback);
+    ros::Subscriber sub_img1 = nh_.subscribe(IMAGE1_TOPIC, 100, img1_callback);
+    ros::Subscriber sub_restart = nh_.subscribe("/vins_restart", 100, restart_callback);
+    ros::Subscriber sub_imu_switch = nh_.subscribe("/vins_imu_switch", 100, imu_switch_callback);
+    ros::Subscriber sub_cam_switch = nh_.subscribe("/vins_cam_switch", 100, cam_switch_callback);
 
     std::thread sync_thread{sync_process};
     ros::spin();
