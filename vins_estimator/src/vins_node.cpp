@@ -30,33 +30,32 @@ queue<sensor_msgs::ImageConstPtr> img0_buf;
 queue<sensor_msgs::ImageConstPtr> img1_buf;
 std::mutex m_buf;
 
-VINS_node::VINS_node(ros::NodeHandle &nh) : 
-    nh_(nh)
+VINS_node::VINS_node(ros::NodeHandle &nh) : nh_(nh)
 {
-    sub_imu = nh_.subscribe(IMU_TOPIC, 2000, imu_callback, ros::TransportHints().tcpNoDelay());
-    sub_feature = nh_.subscribe("/feature_tracker/feature", 2000, feature_callback);
-    sub_img0 = nh_.subscribe(IMAGE0_TOPIC, 100, img0_callback);
-    sub_img1 = nh_.subscribe(IMAGE1_TOPIC, 100, img1_callback);
-    sub_restart = nh_.subscribe("/vins_restart", 100, restart_callback);
-    sub_imu_switch = nh_.subscribe("/vins_imu_switch", 100, imu_switch_callback);
-    sub_cam_switch = nh_.subscribe("/vins_cam_switch", 100, cam_switch_callback);
+    sub_imu = nh_.subscribe(IMU_TOPIC, 2000, &VINS_node::imu_callback, this, ros::TransportHints().tcpNoDelay());
+    sub_feature = nh_.subscribe("/feature_tracker/feature", 2000, &VINS_node::feature_callback, this);
+    sub_img0 = nh_.subscribe(IMAGE0_TOPIC, 100, &VINS_node::img0_callback, this);
+    sub_img1 = nh_.subscribe(IMAGE1_TOPIC, 100, &VINS_node::img1_callback, this);
+    sub_restart = nh_.subscribe("/vins_restart", 100, &VINS_node::restart_callback, this);
+    sub_imu_switch = nh_.subscribe("/vins_imu_switch", 100, &VINS_node::imu_switch_callback, this);
+    sub_cam_switch = nh_.subscribe("/vins_cam_switch", 100, &VINS_node::cam_switch_callback, this);
 }
 
-void img0_callback(const sensor_msgs::ImageConstPtr &img_msg)
+void VINS_node::img0_callback(const sensor_msgs::ImageConstPtr &img_msg)
 {
     m_buf.lock();
     img0_buf.push(img_msg);
     m_buf.unlock();
 }
 
-void img1_callback(const sensor_msgs::ImageConstPtr &img_msg)
+void VINS_node::img1_callback(const sensor_msgs::ImageConstPtr &img_msg)
 {
     m_buf.lock();
     img1_buf.push(img_msg);
     m_buf.unlock();
 }
 
-cv::Mat getImageFromMsg(const sensor_msgs::ImageConstPtr &img_msg)
+cv::Mat VINS_node::getImageFromMsg(const sensor_msgs::ImageConstPtr &img_msg)
 {
     cv_bridge::CvImageConstPtr ptr;
     if (img_msg->encoding == "8UC1")
@@ -79,7 +78,7 @@ cv::Mat getImageFromMsg(const sensor_msgs::ImageConstPtr &img_msg)
 }
 
 // extract images with same timestamp from two topics
-void sync_process()
+void VINS_node::sync_process()
 {
     while (1)
     {
@@ -142,7 +141,7 @@ void sync_process()
     }
 }
 
-void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
+void VINS_node::imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
 {
     double t = imu_msg->header.stamp.toSec();
     double dx = imu_msg->linear_acceleration.x;
@@ -157,7 +156,7 @@ void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
     return;
 }
 
-void feature_callback(const sensor_msgs::PointCloudConstPtr &feature_msg)
+void VINS_node::feature_callback(const sensor_msgs::PointCloudConstPtr &feature_msg)
 {
     map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> featureFrame;
     for (unsigned int i = 0; i < feature_msg->points.size(); i++)
@@ -189,7 +188,7 @@ void feature_callback(const sensor_msgs::PointCloudConstPtr &feature_msg)
     return;
 }
 
-void restart_callback(const std_msgs::BoolConstPtr &restart_msg)
+void VINS_node::restart_callback(const std_msgs::BoolConstPtr &restart_msg)
 {
     if (restart_msg->data == true)
     {
@@ -200,7 +199,7 @@ void restart_callback(const std_msgs::BoolConstPtr &restart_msg)
     return;
 }
 
-void imu_switch_callback(const std_msgs::BoolConstPtr &switch_msg)
+void VINS_node::imu_switch_callback(const std_msgs::BoolConstPtr &switch_msg)
 {
     if (switch_msg->data == true)
     {
@@ -215,7 +214,7 @@ void imu_switch_callback(const std_msgs::BoolConstPtr &switch_msg)
     return;
 }
 
-void cam_switch_callback(const std_msgs::BoolConstPtr &switch_msg)
+void VINS_node::cam_switch_callback(const std_msgs::BoolConstPtr &switch_msg)
 {
     if (switch_msg->data == true)
     {
@@ -235,6 +234,8 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "vins_estimator");
     ros::NodeHandle nh_("~");
     ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info);
+
+    VINS_node vn{nh_};
 
     if (argc != 2)
     {
@@ -258,15 +259,7 @@ int main(int argc, char **argv)
 
     registerPub(nh_);
 
-    ros::Subscriber sub_imu = nh_.subscribe(IMU_TOPIC, 2000, imu_callback, ros::TransportHints().tcpNoDelay());
-    ros::Subscriber sub_feature = nh_.subscribe("/feature_tracker/feature", 2000, feature_callback);
-    ros::Subscriber sub_img0 = nh_.subscribe(IMAGE0_TOPIC, 100, img0_callback);
-    ros::Subscriber sub_img1 = nh_.subscribe(IMAGE1_TOPIC, 100, img1_callback);
-    ros::Subscriber sub_restart = nh_.subscribe("/vins_restart", 100, restart_callback);
-    ros::Subscriber sub_imu_switch = nh_.subscribe("/vins_imu_switch", 100, imu_switch_callback);
-    ros::Subscriber sub_cam_switch = nh_.subscribe("/vins_cam_switch", 100, cam_switch_callback);
-
-    std::thread sync_thread{sync_process};
+    std::thread sync_thread{&VINS_node::sync_process, &vn};
     ros::spin();
 
     return 0;
