@@ -5,19 +5,19 @@
 imu: 1         
 num_of_cam: 1  
 
-imu_topic: "/imu0"
-image0_topic: "/cam0/image_raw"
-image1_topic: "/cam1/image_raw"
+imu_topic: "/imu/data"
+image0_topic: "/image_raw"
+image1_topic: "/image_raw"
 output_path: "~/output/"
 
-cam0_calib: "cam0_mei.yaml"
-cam1_calib: "cam1_mei.yaml"
-image_width: 752
+cam0_calib: "camera.yaml"
+cam1_calib: "camera.yaml"
+image_width: 640
 image_height: 480
    
 
 # Extrinsic parameter between IMU and Camera.
-estimate_extrinsic: 0   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
+estimate_extrinsic: 2   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
                         # 1  Have an initial guess about extrinsic parameters. We will optimize around your initial guess.
 
 body_T_cam0: !!opencv-matrix
