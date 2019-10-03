@@ -261,8 +261,10 @@ bool Estimator::getIMUInterval(double t0, double t1, vector<pair<double, Eigen::
 
 bool Estimator::IMUAvailable(double t)
 {
-    if(!accBuf.empty() && t <= accBuf.back().first)
+    if (!accBuf.empty() && t <= accBuf.back().first)
+    {
         return true;
+    }
     else
         return false;
 }
@@ -280,7 +282,7 @@ void Estimator::processMeasurements()
             curTime = feature.first + td;
             while(1)
             {
-                if ((!USE_IMU  || IMUAvailable(feature.first + td)))
+                if ((!USE_IMU || IMUAvailable(feature.first + td)))
                     break;
                 else
                 {
