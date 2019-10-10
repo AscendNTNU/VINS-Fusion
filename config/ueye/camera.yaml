@@ -5,12 +5,12 @@ camera_name: narrow_stereo
 image_width: 1280
 image_height: 1024
 distortion_parameters:
-   k1: -0.244701
-   k2: 0.039484
-   p1: 0.000995
-   p2: 0.002945
+   k1: -0.136957
+   k2: 0.091370
+   p1: -0.002436
+   p2: -0.004817
 projection_parameters:
-   fx: 430.251406
-   fy: 430.982917
-   cx: 584.299083
-   cy: 511.317313
+   fx: 669.05664
+   fy: 670.66473
+   cx: 602.6132
+   cy: 508.31143
